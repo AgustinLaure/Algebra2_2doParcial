@@ -1,24 +1,22 @@
 using CustomMath;
 using System.Collections.Generic;
+using UnityEngine;
 
-public class Octree<T>
+public class Octree
 {
-    private List<Node> nodes = new List<Node>();
-
-    private class Node
+    private Node topNode = null;
+    public class Node
     {
-        public float width = 0f;
-        public float height = 0f;
-        public float depth = 0f;
+        public Vec3 size = Vec3.Zero;
         public Vec3 position = Vec3.Zero;
-        public List<T> elements = new List<T>();
+        public List<Element> elements = new List<Element>();
         public List<Node> childNodes = new List<Node>();
 
         public void Calculate(int maxElements)
         {
             if (elements.Count >= maxElements)
             {
-                Vec3 newNodeSize = new Vec3(width * 0.5f, height * 0.5f, depth * 0.5f);
+                Vec3 newNodeSize = new Vec3(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f);
 
                 Vec3 direction = Vec3.One;
 
@@ -55,21 +53,38 @@ public class Octree<T>
             }
         }
 
-        public bool IsElementInside(T element)
+        public void DrawNode()
         {
-            return true;
+            Gizmos.DrawWireCube(position, size);
+        }
+
+        public bool IsElementInside(Element element)
+        {
+            MeshRenderer elementMeshRenderer = element.GetMeshRenderer;
+
+            Vec3 elementCenter = elementMeshRenderer.bounds.center;
+            Vec3 elementBounds = elementMeshRenderer.bounds.extents;
+
+            Vec3 halfExtents = size * 0.5f;
+
+            return position.x + halfExtents.x >= elementCenter.x - elementBounds.x
+                && position.x - halfExtents.x <= elementCenter.x + elementBounds.x
+                && position.y + halfExtents.y >= elementCenter.y - elementBounds.y
+                  && position.y - halfExtents.y <= elementCenter.y + elementBounds.y
+                  && position.z + halfExtents.z >= elementCenter.z - elementBounds.z
+                  && position.z - halfExtents.z <= elementCenter.z + elementBounds.z;
         }
 
         private void CalculateSon(Vec3 newNodeSize, Vec3 direction, int maxElements)
         {
             Node currentNewNode = new Node();
 
-            currentNewNode.width = newNodeSize.x;
-            currentNewNode.height = newNodeSize.y;
-            currentNewNode.depth = newNodeSize.z;
+            currentNewNode.size.x = newNodeSize.x;
+            currentNewNode.size.y = newNodeSize.y;
+            currentNewNode.size.z = newNodeSize.z;
             currentNewNode.position = position + direction;
 
-            foreach (T element in elements)
+            foreach (Element element in elements)
             {
                 if (currentNewNode.IsElementInside(element))
                 {
@@ -82,18 +97,37 @@ public class Octree<T>
         }
     }
 
-    public Octree(Vec3 pos, float width, float height, float depth, List<T> elements, int maxElements)
+    public Octree(Vec3 pos, float width, float height, float depth, List<Element> elements, int maxElements)
     {
         Node firstNode = new Node();
 
-        firstNode.width = width;
-        firstNode.height = height;
-        firstNode.depth = depth;
+        topNode = firstNode;
+
+        firstNode.size.x = width;
+        firstNode.size.y = height;
+        firstNode.size.z = depth;
         firstNode.position = pos;
 
         firstNode.elements = elements;
-        nodes.Add(firstNode);
 
         firstNode.Calculate(maxElements);
+    }
+
+    private void DrawRecursive(Node topNode)
+    {
+        topNode.DrawNode();
+
+        foreach (Node node in topNode.childNodes)
+        {
+            DrawRecursive(node);
+        }
+    }
+
+    public void Draw()
+    {
+        if (topNode != null)
+        {
+            DrawRecursive(topNode);
+        }
     }
 }
