@@ -1,20 +1,24 @@
 using CustomMath;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class Octree
 {
     private Node topNode = null;
+
+    private const int maxDepth = 7;
+
     public class Node
     {
         public Vec3 size = Vec3.Zero;
         public Vec3 position = Vec3.Zero;
-        public List<Element> elements = new List<Element>();
+        public List<IBoundeable> elements = new List<IBoundeable>();
         public List<Node> childNodes = new List<Node>();
 
-        public void Calculate(int maxElements)
+        public void Calculate(int maxElements, int currentDepth, int maxDepth)
         {
-            if (elements.Count >= maxElements)
+            if (elements.Count >= maxElements && currentDepth <= maxDepth)
             {
                 Vec3 newNodeSize = new Vec3(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f);
 
@@ -26,7 +30,7 @@ public class Octree
 
                 for (int i = 0; i < 6; i++)
                 {
-                    CalculateSon(newNodeSize, direction, maxElements);
+                    CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
 
                     if (i % 3 == 0)
                     {
@@ -44,13 +48,34 @@ public class Octree
 
                 direction.x *= -1f;
                 direction.z *= -1f;
-                CalculateSon(newNodeSize, direction, maxElements);
+                CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
 
                 direction = direction * -1f;
-                CalculateSon(newNodeSize, direction, maxElements);
+                CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
 
                 elements.Clear();
             }
+        }
+
+        private void CalculateSon(Vec3 newNodeSize, Vec3 direction, int maxElements, int currentDepth, int maxDepth)
+        {
+            Node currentNewNode = new Node();
+
+            currentNewNode.size.x = newNodeSize.x;
+            currentNewNode.size.y = newNodeSize.y;
+            currentNewNode.size.z = newNodeSize.z;
+            currentNewNode.position = position + direction;
+
+            foreach (IBoundeable element in elements)
+            {
+                if (currentNewNode.IsElementInside(element))
+                {
+                    currentNewNode.elements.Add(element);
+                }
+            }
+
+            currentNewNode.Calculate(maxElements, currentDepth + 1, maxDepth);
+            childNodes.Add(currentNewNode);
         }
 
         public void DrawNode()
@@ -58,12 +83,25 @@ public class Octree
             Gizmos.DrawWireCube(position, size);
         }
 
-        public bool IsElementInside(Element element)
+        public void DoSomethingRecursive(Action<Node> action)
         {
-            MeshRenderer elementMeshRenderer = element.GetMeshRenderer;
+            if (childNodes.Count <= 0)
+            {
+                action(this);
+            }
+            else
+            {
+                foreach (Node node in childNodes)
+                {
+                    node.DoSomethingRecursive(action);
+                }
+            }
+        }
 
-            Vec3 elementCenter = elementMeshRenderer.bounds.center;
-            Vec3 elementBounds = elementMeshRenderer.bounds.extents;
+        public bool IsElementInside(IBoundeable element)
+        {
+            Vec3 elementCenter = element.GetPos();
+            Vec3 elementBounds = element.GetExtents();
 
             Vec3 halfExtents = size * 0.5f;
 
@@ -74,30 +112,9 @@ public class Octree
                   && position.z + halfExtents.z >= elementCenter.z - elementBounds.z
                   && position.z - halfExtents.z <= elementCenter.z + elementBounds.z;
         }
-
-        private void CalculateSon(Vec3 newNodeSize, Vec3 direction, int maxElements)
-        {
-            Node currentNewNode = new Node();
-
-            currentNewNode.size.x = newNodeSize.x;
-            currentNewNode.size.y = newNodeSize.y;
-            currentNewNode.size.z = newNodeSize.z;
-            currentNewNode.position = position + direction;
-
-            foreach (Element element in elements)
-            {
-                if (currentNewNode.IsElementInside(element))
-                {
-                    currentNewNode.elements.Add(element);
-                }
-            }
-
-            currentNewNode.Calculate(maxElements);
-            childNodes.Add(currentNewNode);
-        }
     }
 
-    public Octree(Vec3 pos, float width, float height, float depth, List<Element> elements, int maxElements)
+    public Octree(Vec3 pos, float width, float height, float depth, List<IBoundeable> elements, int maxElements)
     {
         Node firstNode = new Node();
 
@@ -108,9 +125,14 @@ public class Octree
         firstNode.size.z = depth;
         firstNode.position = pos;
 
-        firstNode.elements = elements;
+        firstNode.elements = new List<IBoundeable>(elements);
 
-        firstNode.Calculate(maxElements);
+        firstNode.Calculate(maxElements, 0, maxDepth);
+    }
+
+    public void Recalculate(List<IBoundeable> elements)
+    {
+
     }
 
     private void DrawRecursive(Node topNode)
@@ -121,6 +143,11 @@ public class Octree
         {
             DrawRecursive(node);
         }
+    }
+
+    public void DoSomething(Action<Node> action)
+    {
+        topNode.DoSomethingRecursive(action);
     }
 
     public void Draw()
