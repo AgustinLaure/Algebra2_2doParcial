@@ -11,7 +11,7 @@ public class Element : MonoBehaviour, IBoundeable
     [SerializeField] private int modelOctreeMaxPerNode;
     private Color baseColor;
     public Octree modelOctree;
-    private List<IBoundeable> triangles = new List<IBoundeable>();
+    public List<IBoundeable> triangles = new List<IBoundeable>();
 
     private bool shouldDrawModelOctree = false;
 

@@ -77,7 +77,45 @@ public class Tester : MonoBehaviour
 
         CheckMeshCollisionRecursive(ref isCollision, a.modelOctree.topNode, b.modelOctree.topNode, a.transform, b.transform);
 
+        //Triangle randomTriA = GetSmallestNode(a.modelOctree.topNode).elements[0] as Triangle;
+        //Triangle randomTriB = GetSmallestNode(b.modelOctree.topNode).elements[0] as Triangle;
+        //Mat4x4 bToLocalA = a.transform.worldToLocalMatrix * b.transform.localToWorldMatrix;
+        //Mat4x4 aToLocalB = b.transform.worldToLocalMatrix * a.transform.localToWorldMatrix;
+        //
+        //bool isInside = IsVertexInside(bToLocalA, b, randomTriA) || IsVertexInside(aToLocalB, a, randomTriB);
+        //
+        //if (isInside)
+        //{
+        //    return true;
+        //}
+
         return isCollision;
+    }
+
+    private bool IsVertexInside(Mat4x4 bToLocalA, Element b, Triangle randomTri)
+    {
+        foreach (Triangle triangle in b.triangles)
+        {
+            MyPlane bPlane = new MyPlane(bToLocalA.MultiplyPoint3x4(triangle.vertices[0]), bToLocalA.MultiplyPoint3x4(triangle.vertices[1]), bToLocalA.MultiplyPoint3x4(triangle.vertices[2]));
+
+            if (bPlane.GetSide(randomTri.vertices[0]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    private Octree.Node GetSmallestNode(Octree.Node node)
+    {
+        if (node.childNodes.Count <= 0)
+        {
+            return node;
+        }
+        else
+        {
+            return GetSmallestNode(node.childNodes[0]);
+        }
     }
 
     private void CheckMeshCollisionRecursive(ref bool isCollision, Octree.Node currentANode, Octree.Node currentBNode, Transform aTransform, Transform bTransform)
@@ -187,12 +225,12 @@ public class Tester : MonoBehaviour
         }
         else
         {
-            if (CheckTriangleOnTriangle(a, bPlane, transformedB))
+            if (CheckTriangleOnTriangle(a.vertices, bPlane, transformedB))
             {
                 return true;
             }
 
-            if (CheckTriangleOnTriangle(b, aPlane, a.vertices))
+            if (CheckTriangleOnTriangle(transformedB, aPlane, a.vertices))
             {
                 return true;
             }
@@ -201,39 +239,43 @@ public class Tester : MonoBehaviour
         return false;
     }
 
-    private bool CheckTriangleOnTriangle(Triangle a, MyPlane bPlane, Vec3[] transformedB)
+    private bool CheckTriangleOnTriangle(Vec3[] a, MyPlane bPlane, Vec3[] transformedB)
     {
-        for (int i = 0; i < a.vertices.Length; i++)
+        for (int i = 0; i < a.Length; i++)
         {
             int endIndex = i + 1;
-
-            if (endIndex >= a.vertices.Length)
+    
+            if (endIndex >= a.Length)
             {
                 endIndex = 0;
             }
-
-            Vec3 start = a.vertices[i];
-            Vec3 end = a.vertices[endIndex];
-
-            bool isStartPositive = bPlane.GetSide(start);
-            bool isEndPositive = bPlane.GetSide(end);
-
-            if (isStartPositive != isEndPositive)
+    
+            Vec3 start = a[i];
+            Vec3 end = a[endIndex];
+    
+            float startDist = -bPlane.GetDistanceToPoint(start);
+            float endDist = -bPlane.GetDistanceToPoint(end);
+    
+            if ((startDist > epsilon && endDist < -epsilon) || (startDist < -epsilon && endDist > epsilon)
+                || Mathf.Abs(startDist) <= epsilon || Mathf.Abs(endDist) <= epsilon)
             {
                 Vec3 segmentDir = end - start;
                 float orthoDist = Vec3.Dot(bPlane.Normal, segmentDir);
-
-                float t = Vec3.Dot(bPlane.Normal, transformedB[0] - start) / orthoDist;
-
-                Vec3 intersection = start + (segmentDir * t);
-
-                if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, intersection))
+    
+                if (Mathf.Abs(orthoDist) > epsilon)
                 {
-                    return true;
+                    float t = startDist / orthoDist;
+
+                    Vec3 intersection = start + (segmentDir * Mathf.Clamp01(t));
+    
+                    if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, intersection))
+                    {
+                        return true;
+                    }
                 }
             }
         }
-
+    
         return false;
     }
 
