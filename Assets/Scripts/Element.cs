@@ -1,14 +1,19 @@
 using UnityEngine;
 using CustomMath;
 using System.Collections.Generic;
+using UnityEngine.InputSystem;
 
 public class Element : MonoBehaviour, IBoundeable
 {
     [SerializeField] private MeshRenderer meshRenderer;
     [SerializeField] private MeshFilter meshFilter;
+    [SerializeField] private int modelOctreeMaxDepth;
+    [SerializeField] private int modelOctreeMaxPerNode;
     private Color baseColor;
-    private Octree modelOctree;
+    public Octree modelOctree;
     private List<IBoundeable> triangles = new List<IBoundeable>();
+
+    private bool shouldDrawModelOctree = false;
 
     public MeshRenderer GetMeshRenderer { get { return meshRenderer; } }
     public MeshFilter GetMeshFilter { get { return meshFilter; } }
@@ -25,7 +30,15 @@ public class Element : MonoBehaviour, IBoundeable
 
         SetTriangles();
 
-        modelOctree = new Octree(mesh.bounds.center, mesh.bounds.size.x, mesh.bounds.size.y, mesh.bounds.size.z, triangles, 7);
+        modelOctree = new Octree(mesh.bounds.center, mesh.bounds.size.x, mesh.bounds.size.y, mesh.bounds.size.z, triangles, modelOctreeMaxPerNode, modelOctreeMaxDepth);
+    }
+
+    private void Update()
+    {
+        if (Keyboard.current.spaceKey.wasPressedThisFrame)
+        {
+            shouldDrawModelOctree = !shouldDrawModelOctree;
+        }
     }
 
     private void SetTriangles()
@@ -75,7 +88,10 @@ public class Element : MonoBehaviour, IBoundeable
 
         Gizmos.matrix = transform.localToWorldMatrix;
 
-        modelOctree?.Draw();
+        if (shouldDrawModelOctree)
+        {
+            modelOctree?.Draw();
+        }
 
         Gizmos.matrix = oldMatrix;
     }

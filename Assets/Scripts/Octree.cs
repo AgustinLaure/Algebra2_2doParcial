@@ -5,9 +5,7 @@ using UnityEngine;
 
 public class Octree
 {
-    private Node topNode = null;
-
-    private const int maxDepth = 7;
+    public Node topNode = null;
 
     public class Node
     {
@@ -114,7 +112,7 @@ public class Octree
         }
     }
 
-    public Octree(Vec3 pos, float width, float height, float depth, List<IBoundeable> elements, int maxElements)
+    public Octree(Vec3 pos, float width, float height, float depth, List<IBoundeable> elements, int maxElements, int maxDepth)
     {
         Node firstNode = new Node();
 

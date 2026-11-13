@@ -2,7 +2,7 @@ using CustomMath;
 
 public class Triangle : IBoundeable
 {
-    private Vec3[] vertices;
+    public Vec3[] vertices;
 
     public Triangle(Vec3[] vertices)
     {

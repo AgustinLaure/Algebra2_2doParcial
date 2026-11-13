@@ -1,6 +1,6 @@
-using UnityEngine;
-using System.Collections.Generic;
 using CustomMath;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class Tester : MonoBehaviour
 {
@@ -8,8 +8,13 @@ public class Tester : MonoBehaviour
     [SerializeField] private float width;
     [SerializeField] private float height;
     [SerializeField] private float depth;
+    [SerializeField] private UnityEngine.Color AABBColor;
+    [SerializeField] private UnityEngine.Color realCollisionColor;
+
     [SerializeField] private int maxElements;
-    [SerializeField] private Color AABBColor;
+    [SerializeField] private int octreeMaxDepth;
+
+    [SerializeField] private float epsilon = 0.000001f;
 
     private Octree octree;
 
@@ -21,7 +26,7 @@ public class Tester : MonoBehaviour
             elements.Add(element);
         }
 
-        octree = new Octree(transform.position, width, height, depth, elements, maxElements);
+        octree = new Octree(transform.position, width, height, depth, elements, maxElements, octreeMaxDepth);
     }
 
     private void Update()
@@ -55,9 +60,195 @@ public class Tester : MonoBehaviour
                     {
                         element2.SetColor(AABBColor);
                     }
+
+                    if (CheckMeshCollision(element1, element2))
+                    {
+                        element1.SetColor(realCollisionColor);
+                        element2.SetColor(realCollisionColor);
+                    }
                 }
             }
         }
+    }
+
+    private bool CheckMeshCollision(Element a, Element b)
+    {
+        bool isCollision = false;
+
+        CheckMeshCollisionRecursive(ref isCollision, a.modelOctree.topNode, b.modelOctree.topNode, a.transform, b.transform);
+
+        return isCollision;
+    }
+
+    private void CheckMeshCollisionRecursive(ref bool isCollision, Octree.Node currentANode, Octree.Node currentBNode, Transform aTransform, Transform bTransform)
+    {
+        if (isCollision)
+        {
+            return;
+        }
+
+        Mat4x4 bToLocalAMat = aTransform.worldToLocalMatrix * bTransform.localToWorldMatrix;
+
+        if (NodeCollision(bToLocalAMat, currentANode, currentBNode, aTransform, bTransform))
+        {
+            bool aHasChildren = currentANode.childNodes.Count > 0;
+            bool bHasChildren = currentBNode.childNodes.Count > 0;
+
+            if (!aHasChildren && !bHasChildren)
+            {
+                for (int i = 0; i < currentANode.elements.Count; i++)
+                {
+                    for (int j = 0; j < currentBNode.elements.Count; j++)
+                    {
+                        if (TriangleCollision(bToLocalAMat, currentANode.elements[i] as Triangle, currentBNode.elements[j] as Triangle))
+                        {
+                            isCollision = true;
+                            return;
+                        }
+                    }
+                }
+            }
+            else if (aHasChildren && !bHasChildren)
+            {
+                foreach (Octree.Node aNodeChild in currentANode.childNodes)
+                {
+                    CheckMeshCollisionRecursive(ref isCollision, aNodeChild, currentBNode, aTransform, bTransform);
+                }
+            }
+            else if (!aHasChildren && bHasChildren)
+            {
+                foreach (Octree.Node bNodeChild in currentBNode.childNodes)
+                {
+                    CheckMeshCollisionRecursive(ref isCollision, currentANode, bNodeChild, aTransform, bTransform);
+                }
+            }
+            else
+            {
+                foreach (Octree.Node aNodeChild in currentANode.childNodes)
+                {
+                    foreach (Octree.Node bNodeChild in currentBNode.childNodes)
+                    {
+                        CheckMeshCollisionRecursive(ref isCollision, aNodeChild, bNodeChild, aTransform, bTransform);
+                        if (isCollision)
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private bool NodeCollision(Mat4x4 bToLocalAMat, Octree.Node aNode, Octree.Node bNode, Transform aTransform, Transform bTransform)
+    {
+        float absM00 = Mathf.Abs(bToLocalAMat.m00);
+        float absM01 = Mathf.Abs(bToLocalAMat.m01);
+        float absM02 = Mathf.Abs(bToLocalAMat.m02);
+
+        float absM10 = Mathf.Abs(bToLocalAMat.m10);
+        float absM11 = Mathf.Abs(bToLocalAMat.m11);
+        float absM12 = Mathf.Abs(bToLocalAMat.m12);
+
+        float absM20 = Mathf.Abs(bToLocalAMat.m20);
+        float absM21 = Mathf.Abs(bToLocalAMat.m21);
+        float absM22 = Mathf.Abs(bToLocalAMat.m22);
+
+        Vec3 bNewSize = new Vec3
+            (
+                absM00 * bNode.size.x + absM01 * bNode.size.y + absM02 * bNode.size.z,
+                absM10 * bNode.size.x + absM11 * bNode.size.y + absM12 * bNode.size.z,
+                absM20 * bNode.size.x + absM21 * bNode.size.y + absM22 * bNode.size.z
+            );
+
+        return AABB(aNode.position, aNode.size, bToLocalAMat.MultiplyPoint3x4(bNode.position), bNewSize);
+    }
+
+    private bool TriangleCollision(Mat4x4 bToLocalAMat, Triangle a, Triangle b)
+    {
+        Vec3[] transformedB = new Vec3[]
+            {
+                bToLocalAMat.MultiplyPoint3x4(b.vertices[0]),
+                bToLocalAMat.MultiplyPoint3x4(b.vertices[1]),
+                bToLocalAMat.MultiplyPoint3x4(b.vertices[2])
+            };
+
+        MyPlane aPlane = new MyPlane(a.vertices[0], a.vertices[1], a.vertices[2]);
+        MyPlane bPlane = new MyPlane(transformedB[0], transformedB[1], transformedB[2]);
+
+        if (aPlane.Normal == bPlane.Normal)
+        {
+            for (int i = 0; i < a.vertices.Length; i++)
+            {
+                if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, a.vertices[i]))
+                {
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            if (CheckTriangleOnTriangle(a, bPlane, transformedB))
+            {
+                return true;
+            }
+
+            if (CheckTriangleOnTriangle(b, aPlane, a.vertices))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool CheckTriangleOnTriangle(Triangle a, MyPlane bPlane, Vec3[] transformedB)
+    {
+        for (int i = 0; i < a.vertices.Length; i++)
+        {
+            int endIndex = i + 1;
+
+            if (endIndex >= a.vertices.Length)
+            {
+                endIndex = 0;
+            }
+
+            Vec3 start = a.vertices[i];
+            Vec3 end = a.vertices[endIndex];
+
+            bool isStartPositive = bPlane.GetSide(start);
+            bool isEndPositive = bPlane.GetSide(end);
+
+            if (isStartPositive != isEndPositive)
+            {
+                Vec3 segmentDir = end - start;
+                float orthoDist = Vec3.Dot(bPlane.Normal, segmentDir);
+
+                float t = Vec3.Dot(bPlane.Normal, transformedB[0] - start) / orthoDist;
+
+                Vec3 intersection = start + (segmentDir * t);
+
+                if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, intersection))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsInsideTriangle(Vec3 a, Vec3 b, Vec3 c, MyPlane plane, Vec3 point)
+    {
+        float triangle1Area = TriangleArea(a, b, point);
+        float triangle2Area = TriangleArea(b, c, point);
+        float triangle3Area = TriangleArea(c, a, point);
+
+        return triangle1Area + triangle2Area + triangle3Area - TriangleArea(a, b, c) < epsilon;
+    }
+
+    private float TriangleArea(Vec3 a, Vec3 b, Vec3 c)
+    {
+        return Vec3.Cross(b - a, c - a).magnitude * 0.5f;
     }
 
     public bool AABB(IBoundeable element1, IBoundeable element2)
@@ -74,6 +265,19 @@ public class Tester : MonoBehaviour
               && element1Center.y - element1Bounds.y <= element2Center.y + element2Bounds.y
               && element1Center.z + element1Bounds.z >= element2Center.z - element2Bounds.z
               && element1Center.z - element1Bounds.z <= element2Center.z + element2Bounds.z;
+    }
+
+    private bool AABB(Vec3 aPos, Vec3 aSize, Vec3 bPos, Vec3 bSize)
+    {
+        Vec3 aHalfExtents = aSize * 0.5f;
+        Vec3 bHalfExtents = bSize * 0.5f;
+
+        return aPos.x + aHalfExtents.x >= bPos.x - bHalfExtents.x &&
+            aPos.x - aHalfExtents.x <= bPos.x + bHalfExtents.x &&
+            aPos.y + aHalfExtents.y >= bPos.y - bHalfExtents.y &&
+            aPos.y - aHalfExtents.y <= bPos.y + bHalfExtents.y &&
+            aPos.z + aHalfExtents.z >= bPos.z - bHalfExtents.z &&
+            aPos.z - aHalfExtents.z <= bPos.z + bHalfExtents.z;
     }
 
     private void OnDrawGizmos()
