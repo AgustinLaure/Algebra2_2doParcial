@@ -162,7 +162,7 @@ public class SetMethods
     {
         IEqualityComparer<TSource> comparer = EqualityComparer<TSource>.Default;
 
-        HashSet<TSource> hashSet = new HashSet<TSource>(source2);
+        HashSet<TSource> hashSet = new HashSet<TSource>(source2, comparer);
 
         foreach (TSource element in source1)
         {
@@ -182,7 +182,7 @@ public class SetMethods
     /// <returns></returns>
     public static IEnumerable<TSource> Except<TSource>(IEnumerable<TSource> source1, IEnumerable<TSource> source2, IEqualityComparer<TSource> comparer)
     {
-        HashSet<TSource> hashSet = new HashSet<TSource>(source2);
+        HashSet<TSource> hashSet = new HashSet<TSource>(source2, comparer);
 
         foreach (TSource element in source1)
         {
@@ -228,6 +228,11 @@ public class SetMethods
             {
                 lastElement = element;
             }
+        }
+
+        if (lastElement != null)
+        {
+            return lastElement;
         }
 
         throw new ArgumentNullException();
