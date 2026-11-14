@@ -1,5 +1,6 @@
 using CustomMath;
 using System.Collections.Generic;
+using UnityEditorInternal;
 using UnityEngine;
 
 public class Tester : MonoBehaviour
@@ -14,7 +15,7 @@ public class Tester : MonoBehaviour
     [SerializeField] private int maxElements;
     [SerializeField] private int octreeMaxDepth;
 
-    [SerializeField] private float epsilon = 0.000001f;
+    [SerializeField] private float epsilon;
 
     private Octree octree;
 
@@ -36,6 +37,7 @@ public class Tester : MonoBehaviour
             element.ResetColor();
         }
 
+        octree.Recalculate(elements);
         octree.DoSomething(HandleCollision);
     }
 
@@ -77,35 +79,9 @@ public class Tester : MonoBehaviour
 
         CheckMeshCollisionRecursive(ref isCollision, a.modelOctree.topNode, b.modelOctree.topNode, a.transform, b.transform);
 
-        //Triangle randomTriA = GetSmallestNode(a.modelOctree.topNode).elements[0] as Triangle;
-        //Triangle randomTriB = GetSmallestNode(b.modelOctree.topNode).elements[0] as Triangle;
-        //Mat4x4 bToLocalA = a.transform.worldToLocalMatrix * b.transform.localToWorldMatrix;
-        //Mat4x4 aToLocalB = b.transform.worldToLocalMatrix * a.transform.localToWorldMatrix;
-        //
-        //bool isInside = IsVertexInside(bToLocalA, b, randomTriA) || IsVertexInside(aToLocalB, a, randomTriB);
-        //
-        //if (isInside)
-        //{
-        //    return true;
-        //}
-
         return isCollision;
     }
 
-    private bool IsVertexInside(Mat4x4 bToLocalA, Element b, Triangle randomTri)
-    {
-        foreach (Triangle triangle in b.triangles)
-        {
-            MyPlane bPlane = new MyPlane(bToLocalA.MultiplyPoint3x4(triangle.vertices[0]), bToLocalA.MultiplyPoint3x4(triangle.vertices[1]), bToLocalA.MultiplyPoint3x4(triangle.vertices[2]));
-
-            if (bPlane.GetSide(randomTri.vertices[0]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
     private Octree.Node GetSmallestNode(Octree.Node node)
     {
         if (node.childNodes.Count <= 0)
@@ -203,40 +179,53 @@ public class Tester : MonoBehaviour
 
     private bool TriangleCollision(Mat4x4 bToLocalAMat, Triangle a, Triangle b)
     {
-        Vec3[] transformedB = new Vec3[]
-            {
-                bToLocalAMat.MultiplyPoint3x4(b.vertices[0]),
-                bToLocalAMat.MultiplyPoint3x4(b.vertices[1]),
-                bToLocalAMat.MultiplyPoint3x4(b.vertices[2])
-            };
+         Vec3[] transformedB = new Vec3[]
+             {
+                 bToLocalAMat.MultiplyPoint3x4(b.vertices[0]),
+                 bToLocalAMat.MultiplyPoint3x4(b.vertices[1]),
+                 bToLocalAMat.MultiplyPoint3x4(b.vertices[2])
+             };
+        
+         MyPlane aPlane = new MyPlane(a.vertices[0], a.vertices[1], a.vertices[2]);
+         MyPlane bPlane = new MyPlane(transformedB[0], transformedB[1], transformedB[2]);
+        
+         if (Mathf.Abs(Vec3.Dot(aPlane.Normal, bPlane.Normal)) > (1f - epsilon))
+         {
+             if (Mathf.Abs(bPlane.GetDistanceToPoint(a.vertices[0])) > epsilon)
+             {
+                 return false;
+             }
+        
+             for (int i = 0; i < a.vertices.Length; i++)
+             {
+                 if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, a.vertices[i]))
+                 {
+                     return true;
+                 }
+             }
 
-        MyPlane aPlane = new MyPlane(a.vertices[0], a.vertices[1], a.vertices[2]);
-        MyPlane bPlane = new MyPlane(transformedB[0], transformedB[1], transformedB[2]);
-
-        if (aPlane.Normal == bPlane.Normal)
-        {
-            for (int i = 0; i < a.vertices.Length; i++)
+            for (int i = 0; i < 3; i++)
             {
-                if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, a.vertices[i]))
+                if (IsInsideTriangle(a.vertices[0], a.vertices[1], a.vertices[2], aPlane, transformedB[i]))
                 {
                     return true;
                 }
             }
         }
-        else
-        {
-            if (CheckTriangleOnTriangle(a.vertices, bPlane, transformedB))
-            {
-                return true;
-            }
-
-            if (CheckTriangleOnTriangle(transformedB, aPlane, a.vertices))
-            {
-                return true;
-            }
-        }
-
-        return false;
+         else
+         {
+             if (CheckTriangleOnTriangle(a.vertices, bPlane, transformedB))
+             {
+                 return true;
+             }
+        
+             if (CheckTriangleOnTriangle(transformedB, aPlane, a.vertices))
+             {
+                 return true;
+             }
+         }
+        
+         return false;
     }
 
     private bool CheckTriangleOnTriangle(Vec3[] a, MyPlane bPlane, Vec3[] transformedB)
@@ -244,30 +233,30 @@ public class Tester : MonoBehaviour
         for (int i = 0; i < a.Length; i++)
         {
             int endIndex = i + 1;
-    
+
             if (endIndex >= a.Length)
             {
                 endIndex = 0;
             }
-    
+
             Vec3 start = a[i];
             Vec3 end = a[endIndex];
-    
+
             float startDist = -bPlane.GetDistanceToPoint(start);
             float endDist = -bPlane.GetDistanceToPoint(end);
-    
+
             if ((startDist > epsilon && endDist < -epsilon) || (startDist < -epsilon && endDist > epsilon)
                 || Mathf.Abs(startDist) <= epsilon || Mathf.Abs(endDist) <= epsilon)
             {
                 Vec3 segmentDir = end - start;
                 float orthoDist = Vec3.Dot(bPlane.Normal, segmentDir);
-    
+
                 if (Mathf.Abs(orthoDist) > epsilon)
                 {
                     float t = startDist / orthoDist;
 
                     Vec3 intersection = start + (segmentDir * Mathf.Clamp01(t));
-    
+
                     if (IsInsideTriangle(transformedB[0], transformedB[1], transformedB[2], bPlane, intersection))
                     {
                         return true;
@@ -275,17 +264,20 @@ public class Tester : MonoBehaviour
                 }
             }
         }
-    
+
         return false;
     }
 
     private bool IsInsideTriangle(Vec3 a, Vec3 b, Vec3 c, MyPlane plane, Vec3 point)
     {
+        float baseArea = TriangleArea(a, b, c);
+        
         float triangle1Area = TriangleArea(a, b, point);
         float triangle2Area = TriangleArea(b, c, point);
         float triangle3Area = TriangleArea(c, a, point);
-
-        return triangle1Area + triangle2Area + triangle3Area - TriangleArea(a, b, c) < epsilon;
+        float totalArea = triangle1Area + triangle2Area + triangle3Area;
+        
+        return Mathf.Abs(totalArea - TriangleArea(a, b, c)) <= epsilon;
     }
 
     private float TriangleArea(Vec3 a, Vec3 b, Vec3 c)

@@ -6,6 +6,8 @@ using UnityEngine;
 public class Octree
 {
     public Node topNode = null;
+    private int maxElements;
+    private int maxDepth;
 
     public class Node
     {
@@ -114,6 +116,9 @@ public class Octree
 
     public Octree(Vec3 pos, float width, float height, float depth, List<IBoundeable> elements, int maxElements, int maxDepth)
     {
+        this.maxElements = maxElements;
+        this.maxDepth = maxDepth;
+
         Node firstNode = new Node();
 
         topNode = firstNode;
@@ -130,7 +135,9 @@ public class Octree
 
     public void Recalculate(List<IBoundeable> elements)
     {
-
+        topNode.childNodes.Clear();
+        topNode.elements = new List<IBoundeable>(elements);
+        topNode.Calculate(maxElements, 0, maxDepth);
     }
 
     private void DrawRecursive(Node topNode)

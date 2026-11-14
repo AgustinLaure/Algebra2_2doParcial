@@ -18,7 +18,6 @@ public class Element : MonoBehaviour, IBoundeable
     public MeshRenderer GetMeshRenderer { get { return meshRenderer; } }
     public MeshFilter GetMeshFilter { get { return meshFilter; } }
 
-
     private void Awake()
     {
         baseColor = meshRenderer.material.color;
@@ -94,5 +93,10 @@ public class Element : MonoBehaviour, IBoundeable
         }
 
         Gizmos.matrix = oldMatrix;
+
+        if (shouldDrawModelOctree)
+        {
+            Gizmos.DrawWireCube(meshRenderer.bounds.center, meshRenderer.bounds.size);
+        }
     }
 }
