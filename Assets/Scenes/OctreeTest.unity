@@ -1897,6 +1897,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Octree
       objectReference: {fileID: 0}
+    - target: {fileID: 2348342592874988310, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5768614318468151279, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -1937,43 +1941,16 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: epsilon
-      value: 0.001
-      objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: AABBColor.b
-      value: 0.01934494
-      objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: AABBColor.g
-      value: 0.01934494
-      objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: AABBColor.r
-      value: 0.93207544
-      objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: maxElements
-      value: 7
-      objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: octreeMaxDepth
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: realCollisionColor.b
+    - target: {fileID: 7174146114814301616, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
+      propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: realCollisionColor.g
-      value: 0.925928
+      propertyPath: mode
+      value: 4
       objectReference: {fileID: 0}
-    - target: {fileID: 8490861137932824296, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
-      propertyPath: realCollisionColor.r
-      value: 1
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 2348342592874988310, guid: f7a129fc6ab554547bb039955cb2b16d, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

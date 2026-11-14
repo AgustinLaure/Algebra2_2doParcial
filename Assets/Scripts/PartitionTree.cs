@@ -3,11 +3,18 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Octree
+public class PartitionTree
 {
     public Node topNode = null;
     private int maxElements;
     private int maxDepth;
+    private Mode mode = Mode.Octree;
+
+    public enum Mode
+    {
+        Quadtree = 4,
+        Octree = 6
+    }
 
     public class Node
     {
@@ -15,9 +22,16 @@ public class Octree
         public Vec3 position = Vec3.Zero;
         public List<IBoundeable> elements = new List<IBoundeable>();
         public List<Node> childNodes = new List<Node>();
+        private Mode mode = Mode.Octree;
+
+        public Node(Mode mode)
+        {
+            this.mode = mode;
+        }
 
         public void Calculate(int maxElements, int currentDepth, int maxDepth)
         {
+            int maxSons = mode == Mode.Octree ? 8 : 4;
             if (elements.Count >= maxElements && currentDepth <= maxDepth)
             {
                 Vec3 newNodeSize = new Vec3(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f);
@@ -28,30 +42,47 @@ public class Octree
                 direction.y *= newNodeSize.y * 0.5f;
                 direction.z *= newNodeSize.z * 0.5f;
 
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < (int)mode; i++)
                 {
                     CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
 
-                    if (i % 3 == 0)
+                    if (mode == Mode.Octree)
                     {
-                        direction.x *= -1f;
+                        if (i % 3 == 0)
+                        {
+                            direction.x *= -1f;
+                        }
+                        else if (i % 3 == 1)
+                        {
+                            direction.y *= -1f;
+                        }
+                        else if (i % 3 == 2)
+                        {
+                            direction.z *= -1f;
+                        }
                     }
-                    else if (i % 3 == 1)
+                    else
                     {
-                        direction.y *= -1f;
-                    }
-                    else if (i % 3 == 2)
-                    {
-                        direction.z *= -1f;
+                        if (i % 2 == 0)
+                        {
+                            direction.x *= -1f;
+                        }
+                        else
+                        {
+                            direction.y *= -1f;
+                        }
                     }
                 }
 
-                direction.x *= -1f;
-                direction.z *= -1f;
-                CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
+                if (mode == Mode.Octree)
+                {
+                    direction.x *= -1f;
+                    direction.z *= -1f;
+                    CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
 
-                direction = direction * -1f;
-                CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
+                    direction = direction * -1f;
+                    CalculateSon(newNodeSize, direction, maxElements, currentDepth, maxDepth);
+                }
 
                 elements.Clear();
             }
@@ -59,7 +90,7 @@ public class Octree
 
         private void CalculateSon(Vec3 newNodeSize, Vec3 direction, int maxElements, int currentDepth, int maxDepth)
         {
-            Node currentNewNode = new Node();
+            Node currentNewNode = new Node(mode);
 
             currentNewNode.size.x = newNodeSize.x;
             currentNewNode.size.y = newNodeSize.y;
@@ -105,27 +136,39 @@ public class Octree
 
             Vec3 halfExtents = size * 0.5f;
 
-            return position.x + halfExtents.x >= elementCenter.x - elementBounds.x
+            bool isInsideXY = position.x + halfExtents.x >= elementCenter.x - elementBounds.x
                 && position.x - halfExtents.x <= elementCenter.x + elementBounds.x
                 && position.y + halfExtents.y >= elementCenter.y - elementBounds.y
-                  && position.y - halfExtents.y <= elementCenter.y + elementBounds.y
-                  && position.z + halfExtents.z >= elementCenter.z - elementBounds.z
-                  && position.z - halfExtents.z <= elementCenter.z + elementBounds.z;
+                  && position.y - halfExtents.y <= elementCenter.y + elementBounds.y;
+
+            if (mode == Mode.Octree)
+            {
+                isInsideXY = isInsideXY && position.z + halfExtents.z >= elementCenter.z - elementBounds.z
+                          && position.z - halfExtents.z <= elementCenter.z + elementBounds.z;
+            }
+
+            return isInsideXY;
         }
     }
 
-    public Octree(Vec3 pos, float width, float height, float depth, List<IBoundeable> elements, int maxElements, int maxDepth)
+    public PartitionTree(List<IBoundeable> elements, int maxElements, int maxDepth, Mode mode, Vec3 pos, float width, float height, float depth = 0f)
     {
         this.maxElements = maxElements;
         this.maxDepth = maxDepth;
+        this.mode = mode;
 
-        Node firstNode = new Node();
+        Node firstNode = new Node(this.mode);
 
         topNode = firstNode;
 
         firstNode.size.x = width;
         firstNode.size.y = height;
-        firstNode.size.z = depth;
+
+        if (mode == Mode.Octree)
+        {
+            firstNode.size.z = depth;
+        }
+
         firstNode.position = pos;
 
         firstNode.elements = new List<IBoundeable>(elements);

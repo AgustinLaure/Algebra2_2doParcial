@@ -10,7 +10,7 @@ public class Element : MonoBehaviour, IBoundeable
     [SerializeField] private int modelOctreeMaxDepth;
     [SerializeField] private int modelOctreeMaxPerNode;
     private Color baseColor;
-    public Octree modelOctree;
+    public PartitionTree modelOctree;
     public List<IBoundeable> triangles = new List<IBoundeable>();
 
     private bool shouldDrawModelOctree = false;
@@ -29,7 +29,7 @@ public class Element : MonoBehaviour, IBoundeable
 
         SetTriangles();
 
-        modelOctree = new Octree(mesh.bounds.center, mesh.bounds.size.x, mesh.bounds.size.y, mesh.bounds.size.z, triangles, modelOctreeMaxPerNode, modelOctreeMaxDepth);
+        modelOctree = new PartitionTree(triangles, modelOctreeMaxPerNode, modelOctreeMaxDepth, PartitionTree.Mode.Octree, mesh.bounds.center, mesh.bounds.size.x, mesh.bounds.size.y, mesh.bounds.size.z);
     }
 
     private void Update()

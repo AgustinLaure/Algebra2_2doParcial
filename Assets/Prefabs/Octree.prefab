@@ -125,7 +125,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 279fffc997963904782e855f231b6d86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Tester
-  elements: []
   width: 20
   height: 20
   depth: 20
+  AABBColor: {r: 0.93207544, g: 0.01934494, b: 0.01934494, a: 0}
+  realCollisionColor: {r: 1, g: 0.925928, b: 0, a: 0}
+  maxElements: 7
+  octreeMaxDepth: 3
+  epsilon: 0.001
