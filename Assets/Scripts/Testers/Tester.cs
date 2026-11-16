@@ -202,12 +202,12 @@ public class Tester : MonoBehaviour
         MyPlane aPlane = new MyPlane(a.vertices[0], a.vertices[1], a.vertices[2]);
         MyPlane bPlane = new MyPlane(transformedB[0], transformedB[1], transformedB[2]);
 
-        if (Mathf.Abs(Vec3.Dot(aPlane.Normal, bPlane.Normal)) > (1f - epsilon))
+        if (Mathf.Abs(Vec3.Dot(aPlane.Normal, bPlane.Normal)) > (1f - epsilon) && !(Mathf.Abs(bPlane.GetDistanceToPoint(a.vertices[0])) > epsilon))
         {
-            if (Mathf.Abs(bPlane.GetDistanceToPoint(a.vertices[0])) > epsilon)
-            {
-                return false;
-            }
+            //if (Mathf.Abs(bPlane.GetDistanceToPoint(a.vertices[0])) > epsilon)
+            //{
+            //    return false;
+            //}
 
             for (int i = 0; i < a.vertices.Length; i++)
             {
